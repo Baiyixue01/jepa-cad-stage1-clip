@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+
+jepa_stage1_clip_ablation/outputs/cache/
+jepa_stage1_clip_ablation/outputs/exp_a_freeze_clip_predictor/checkpoints/
+jepa_stage1_clip_ablation/outputs/exp_a_freeze_clip_predictor/logs/
+jepa_stage1_clip_ablation/outputs/exp_a_freeze_clip_predictor/eval/
+jepa_stage1_clip_ablation/outputs/exp_b_lora_clip_image_text/checkpoints/
+jepa_stage1_clip_ablation/outputs/exp_b_lora_clip_image_text/logs/
+jepa_stage1_clip_ablation/outputs/exp_b_lora_clip_image_text/eval/
