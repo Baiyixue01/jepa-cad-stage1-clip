@@ -2,6 +2,19 @@
 
 这个目录实现两个 JEPA 风格实验，用 `before image + instruction` 预测 CAD 操作 `highlight image` 的 CLIP embedding，并通过 retrieval 指标评估预测质量。
 
+## Conda 环境
+
+仓库根目录提供了 [environment.yml](/Users/baiyixue/project/jepa-cad/stage1_train/environment.yml)。
+
+创建环境：
+
+```bash
+conda env create -f environment.yml
+conda activate jepa-cad-stage1-clip
+```
+
+如果目标机器 CUDA 版本不是 12.1，请先把 `environment.yml` 里的 `pytorch-cuda=12.1` 改成匹配版本，或者删除这一行改用 CPU 环境。
+
 ## 项目目标
 
 - 输入：`previous_model_grid.png` 和文本指令。

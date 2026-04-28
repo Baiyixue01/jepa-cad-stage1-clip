@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+.DS_Store
 
 jepa_stage1_clip_ablation/outputs/cache/
 jepa_stage1_clip_ablation/outputs/exp_a_freeze_clip_predictor/checkpoints/
