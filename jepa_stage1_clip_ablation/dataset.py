@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from pathlib import Path
 
 try:
     from torch.utils.data import Dataset
@@ -6,7 +7,15 @@ except ModuleNotFoundError:
     class Dataset:  # type: ignore[override]
         pass
 
+from . import config
 from .utils import load_pil_image, read_jsonl
+
+
+def resolve_manifest_image_path(image_path: str) -> str:
+    path = Path(image_path)
+    if path.name == config.EMPTY_BEFORE_IMAGE.name:
+        return str(config.EMPTY_BEFORE_IMAGE)
+    return image_path
 
 
 class CADJEPADataset(Dataset):
@@ -20,15 +29,17 @@ class CADJEPADataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.samples[idx]
-        before_image = load_pil_image(row["before_image"], cache_remote=self.cache_remote_images)
-        highlight_image = load_pil_image(row["highlight_image"], cache_remote=self.cache_remote_images)
+        before_image_path = resolve_manifest_image_path(row["before_image"])
+        highlight_image_path = resolve_manifest_image_path(row["highlight_image"])
+        before_image = load_pil_image(before_image_path, cache_remote=self.cache_remote_images)
+        highlight_image = load_pil_image(highlight_image_path, cache_remote=self.cache_remote_images)
         return {
             "sample_id": row["sample_id"],
             "before_image": before_image,
             "highlight_image": highlight_image,
             "instruction": row["instruction"],
-            "before_image_path": row["before_image"],
-            "highlight_image_path": row["highlight_image"],
+            "before_image_path": before_image_path,
+            "highlight_image_path": highlight_image_path,
         }
 
 

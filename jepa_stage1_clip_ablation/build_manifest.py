@@ -15,7 +15,7 @@ def finalize_records(records: list[dict]) -> list[dict]:
     for row in records:
         item = dict(row)
         if item.pop("use_empty_before", False):
-            item["before_image"] = str(config.EMPTY_BEFORE_IMAGE)
+            item["before_image"] = config.EMPTY_BEFORE_IMAGE.name
         finalized.append(item)
     return finalized
 

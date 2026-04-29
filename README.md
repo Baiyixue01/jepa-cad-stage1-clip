@@ -117,3 +117,13 @@ PREFETCH_FACTOR = 4
 PERSISTENT_WORKERS = True
 LOG_EVERY_STEPS = 20
 ```
+
+## Manifest 路径修复
+
+如果训练机报错尝试读取旧的 Mac 路径，例如 `/Users/baiyixue/.../empty_before.png`，说明 manifest 里有不可移植的占位图绝对路径。运行：
+
+```bash
+python fix_manifest_paths.py
+```
+
+修复后 `empty_before.png` 会在读取数据时自动解析到当前仓库的 `jepa_stage1_clip_ablation/outputs/empty_before.png`。
