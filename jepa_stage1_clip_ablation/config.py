@@ -14,8 +14,8 @@ REMOTE_HOST = "lab1"
 # =====================
 # Remote data paths
 # =====================
-SPLIT_PATH = Path("/home/baiyixue/project/op-cad/data/split_result.json")
-PROMPT_CSV_PATH = Path("/home/baiyixue/project/op-cad/data/prompt.csv")
+SPLIT_PATH = Path("/home/baiyixue/project/flowcad/data/split_result.json")
+PROMPT_CSV_PATH = Path("/home/baiyixue/project/flowcad/data/prompt.csv")
 IMAGE_ROOT = Path("/data/baiyixue/CAD/op_orientated_render_data")
 
 # =====================
