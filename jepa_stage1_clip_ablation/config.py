@@ -14,8 +14,8 @@ REMOTE_HOST = "lab1"
 # =====================
 # Remote data paths
 # =====================
-SPLIT_PATH = Path("/home/baiyixue/project/op-cad/data/split_result.json")
-PROMPT_CSV_PATH = Path("/home/baiyixue/project/op-cad/data/prompt.csv")
+SPLIT_PATH = Path("/home/baiyixue/project/flowcad/data/split_result.json")
+PROMPT_CSV_PATH = Path("/home/baiyixue/project/flowcad/data/prompt.csv")
 IMAGE_ROOT = Path("/data/baiyixue/CAD/op_orientated_render_data")
 
 # =====================
@@ -224,13 +224,33 @@ EXP_REG_GIANT_TRANSFORMER = make_exp(
     ),
 )
 
+EXP_FIRST = make_exp(
+    name="exp_first_registers_giant_transformer_strong",
+    vision_model_name="/data/baiyixue/inference_model/dinov2-with-registers-giant",
+    vision_embed_dim=1536,
+    fusion_dim=1536,
+    fusion_arch="transformer",
+    fusion_layers=4,
+    fusion_heads=8,
+    fusion_dropout=0.0,
+    predictor_arch="mlp",
+    batch_size=32,
+    precision="bf16",
+    learning_rate_head=1e-4,
+    learning_rate_image_proj=1e-4,
+    learning_rate_text_proj=1e-4,
+    notes="First strong trial: frozen DINOv2-with-registers-giant source/target, frozen CLIP text, train fusion transformer and predictor.",
+)
+
 EXPERIMENTS = {
+    EXP_FIRST["name"]: EXP_FIRST,
     EXP_A["name"]: EXP_A,
     EXP_B["name"]: EXP_B,
     EXP_C_LARGE["name"]: EXP_C_LARGE,
     EXP_C_GIANT["name"]: EXP_C_GIANT,
     EXP_D["name"]: EXP_D,
     EXP_REG_GIANT_TRANSFORMER["name"]: EXP_REG_GIANT_TRANSFORMER,
+    
 }
 
 DEFAULT_EXPERIMENT_ORDER = [
