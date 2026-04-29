@@ -8,7 +8,7 @@ set -euo pipefail
 REMOTE_HOST="jiangB200"
 
 # 远端项目路径：按你的真实远端路径修改
-REMOTE_ROOT="/home/byx/project/jepa-cad-stage1-clip"
+REMOTE_ROOT="/home/baiyixue/project/jepa-cad-stage1-clip"
 
 # 本地项目路径：默认取当前脚本所在目录的上一级
 LOCAL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
