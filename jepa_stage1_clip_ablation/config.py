@@ -95,6 +95,11 @@ def make_exp(
     learning_rate_adapter: float = 1e-5,
     learning_rate_text_proj: float = 1e-4,
     learning_rate_image_proj: float = 1e-4,
+    fusion_arch: str = "mlp",
+    fusion_layers: int = 2,
+    fusion_heads: int = 8,
+    fusion_dropout: float = 0.0,
+    predictor_arch: str = "mlp",
     lora_rank: int = 8,
     lora_alpha: int = 16,
     lora_dropout: float = 0.05,
@@ -123,6 +128,11 @@ def make_exp(
         "learning_rate_adapter": learning_rate_adapter,
         "learning_rate_text_proj": learning_rate_text_proj,
         "learning_rate_image_proj": learning_rate_image_proj,
+        "fusion_arch": fusion_arch,
+        "fusion_layers": fusion_layers,
+        "fusion_heads": fusion_heads,
+        "fusion_dropout": fusion_dropout,
+        "predictor_arch": predictor_arch,
         "lora_rank": lora_rank,
         "lora_alpha": lora_alpha,
         "lora_dropout": lora_dropout,
@@ -189,12 +199,31 @@ EXP_D = make_exp(
     notes="DINOv2-large source predicts a frozen stronger DINOv3 target embedding space.",
 )
 
+# =====================
+# Experiment E: DINOv2-with-registers-giant + Fusion Transformer
+# =====================
+EXP_REG_GIANT_TRANSFORMER = make_exp(
+    name="exp_e_dinov2_registers_giant_fusion_transformer",
+    vision_model_name="facebook/dinov2-with-registers-giant",
+    vision_embed_dim=1536,
+    fusion_arch="transformer",
+    fusion_layers=4,
+    fusion_heads=8,
+    fusion_dropout=0.0,
+    predictor_arch="mlp",
+    notes=(
+        "Frozen DINOv2-with-registers-giant source/target plus frozen CLIP text. "
+        "Trains image/text projections, 4-layer Fusion Transformer, and MLP predictor."
+    ),
+)
+
 EXPERIMENTS = {
     EXP_A["name"]: EXP_A,
     EXP_B["name"]: EXP_B,
     EXP_C_LARGE["name"]: EXP_C_LARGE,
     EXP_C_GIANT["name"]: EXP_C_GIANT,
     EXP_D["name"]: EXP_D,
+    EXP_REG_GIANT_TRANSFORMER["name"]: EXP_REG_GIANT_TRANSFORMER,
 }
 
 DEFAULT_EXPERIMENT_ORDER = [
@@ -202,5 +231,5 @@ DEFAULT_EXPERIMENT_ORDER = [
     EXP_B["name"],
     EXP_C_LARGE["name"],
     EXP_C_GIANT["name"],
-    EXP_D["name"],
+    EXP_REG_GIANT_TRANSFORMER["name"],
 ]

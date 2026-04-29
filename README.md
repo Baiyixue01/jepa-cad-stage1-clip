@@ -27,6 +27,7 @@ conda activate jepa-cad-stage1-clip
 - 实验 C-large：`DINOv2-large` source LoRA，target frozen，训练 LoRA 和 prediction head。
 - 实验 C-giant：`DINOv2-giant` source LoRA，target frozen，训练 LoRA 和 prediction head。
 - 实验 D：source 默认 `DINOv2-large`，target 预留为 DINOv3/7B frozen embedding 空间。运行前必须在 `config.py` 里把 `DINO_V3_7B_MODEL_NAME` 改成真实本地路径或模型名。
+- 实验 E：`DINOv2-with-registers-giant` source/target frozen，CLIP text frozen，训练 4-layer Fusion Transformer 和 MLP predictor。
 
 ## 离线训练
 
@@ -58,6 +59,7 @@ python run_exp_b.py
 python run_exp_c_large.py
 python run_exp_c_giant.py
 python run_exp_d.py
+python run_exp_registers_giant_transformer.py
 ```
 
 按配置顺序全部运行：
@@ -65,6 +67,8 @@ python run_exp_d.py
 ```bash
 python run_all_experiments.py
 ```
+
+`run_all_experiments.py` 默认不包含实验 D，因为 D 的 DINOv3/7B 模型名是占位符；确认本地权重后可以单独运行 `python run_exp_d.py`。
 
 评估 retrieval：
 

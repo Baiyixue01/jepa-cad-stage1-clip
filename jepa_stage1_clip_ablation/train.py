@@ -45,6 +45,10 @@ def _build_optimizer(model, exp_cfg):
         {"params": model.fusion.parameters(), "lr": exp_cfg["learning_rate_head"]},
         {"params": model.predictor.parameters(), "lr": exp_cfg["learning_rate_head"]},
     ]
+    if hasattr(model, "modality_embed"):
+        groups.append({"params": [model.modality_embed], "lr": exp_cfg["learning_rate_head"]})
+    if hasattr(model, "fusion_norm"):
+        groups.append({"params": model.fusion_norm.parameters(), "lr": exp_cfg["learning_rate_head"]})
     if exp_cfg["train_source_lora"]:
         lora_params = [
             param for name, param in model.source_vision.named_parameters()

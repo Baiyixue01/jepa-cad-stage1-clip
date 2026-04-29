@@ -9,6 +9,7 @@ For experiments A/B/C, prepare these Hugging Face model directories:
 ```bash
 huggingface-cli download facebook/dinov2-large --local-dir /path/to/models/dinov2-large
 huggingface-cli download facebook/dinov2-giant --local-dir /path/to/models/dinov2-giant
+huggingface-cli download facebook/dinov2-with-registers-giant --local-dir /path/to/models/dinov2-with-registers-giant
 huggingface-cli download openai/clip-vit-base-patch16 --local-dir /path/to/models/clip-vit-base-patch16
 ```
 
@@ -32,6 +33,12 @@ EXP_B["target_vision_model_name"] = "/path/to/models/dinov2-giant"
 ```
 
 Apply the same path update to `EXP_C_LARGE`, `EXP_C_GIANT`, and `EXP_D` as needed.
+For the registers-giant Fusion Transformer experiment, update:
+
+```python
+EXP_REG_GIANT_TRANSFORMER["vision_model_name"] = "/path/to/models/dinov2-with-registers-giant"
+EXP_REG_GIANT_TRANSFORMER["target_vision_model_name"] = "/path/to/models/dinov2-with-registers-giant"
+```
 
 ## 2. Offline Environment
 
@@ -87,6 +94,7 @@ python run_exp_b.py
 python run_exp_c_large.py
 python run_exp_c_giant.py
 python run_exp_d.py
+python run_exp_registers_giant_transformer.py
 ```
 
 All configured experiments:
