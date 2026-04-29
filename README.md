@@ -78,13 +78,13 @@ bash scripts/launch_exp_a_b_first_3gpu.sh
 
 脚本默认使用 GPU `0/1/2`，并要求 `config.py` 中已经定义 `EXP_FIRST`。每个实验的 stdout/stderr 会写到自己的 `logs/stdout.log`。
 
-单卡顺序启动除实验 D 以外的所有已注册实验：
+并行启动除实验 D 以外的所有已注册实验，每个实验一张卡：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 BATCH_SIZE_OVERRIDE=128 bash scripts/launch_all_except_d_sequential.sh
+GPU_IDS=0,1,2,3,4,5 BATCH_SIZE_OVERRIDE=64 bash scripts/launch_all_except_d_parallel.sh
 ```
 
-该脚本会读取 `config.EXPERIMENTS`，排除 `EXP_D`，然后一个接一个训练。可以通过 `BATCH_SIZE_OVERRIDE`、`NUM_WORKERS_OVERRIDE` 和 `PREFETCH_FACTOR_OVERRIDE` 调高显存占用和数据加载吞吐。
+该脚本会读取 `config.EXPERIMENTS`，排除 `EXP_D`，然后按顺序把实验分配到 `GPU_IDS` 中的 GPU，并同时启动。可以通过 `BATCH_SIZE_OVERRIDE`、`NUM_WORKERS_OVERRIDE` 和 `PREFETCH_FACTOR_OVERRIDE` 调高显存占用和数据加载吞吐。
 
 评估 retrieval：
 
