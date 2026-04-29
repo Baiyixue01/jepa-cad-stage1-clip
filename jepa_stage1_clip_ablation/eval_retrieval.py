@@ -1,5 +1,3 @@
-import json
-
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -7,8 +5,10 @@ from torch.utils.data import DataLoader
 from . import config
 from .dataset import CADJEPADataset, build_collate_fn
 from .model import create_model
+from .train import _autocast_context
 from .utils import (
     compute_retrieval_metrics,
+    ensure_dir,
     normalize_embeddings,
     read_jsonl,
     write_csv,
@@ -18,21 +18,24 @@ from .utils import (
 
 @torch.no_grad()
 def eval_experiment(exp_cfg):
-    from transformers import CLIPProcessor
+    from transformers import AutoImageProcessor, AutoTokenizer
 
-    checkpoint_path = exp_cfg["output_dir"] / "checkpoints" / "best.pt"
+    checkpoint_path = exp_cfg["best_checkpoint"]
     if not checkpoint_path.exists():
         raise FileNotFoundError(f"Best checkpoint not found: {checkpoint_path}")
 
+    ensure_dir(exp_cfg["eval_dir"])
     device = torch.device(config.DEVICE if torch.cuda.is_available() else "cpu")
-    processor = CLIPProcessor.from_pretrained(config.CLIP_MODEL_NAME)
-    dataset = CADJEPADataset(config.TEST_MANIFEST, processor=processor)
+    image_processor = AutoImageProcessor.from_pretrained(exp_cfg["vision_model_name"])
+    tokenizer = AutoTokenizer.from_pretrained(exp_cfg["text_model_name"])
+    dataset = CADJEPADataset(config.TEST_MANIFEST)
     loader = DataLoader(
         dataset,
-        batch_size=config.BATCH_SIZE,
+        batch_size=exp_cfg["batch_size"],
         shuffle=False,
         num_workers=config.NUM_WORKERS,
-        collate_fn=build_collate_fn(processor),
+        collate_fn=build_collate_fn(image_processor, tokenizer, image_size=exp_cfg["image_size"]),
+        pin_memory=True,
     )
     manifest_rows = read_jsonl(config.TEST_MANIFEST)
 
@@ -44,14 +47,15 @@ def eval_experiment(exp_cfg):
     all_pred = []
     all_target = []
     for batch in loader:
-        outputs = model(
-            before_pixel_values=batch["before_pixel_values"].to(device),
-            input_ids=batch["input_ids"].to(device),
-            attention_mask=batch["attention_mask"].to(device),
-            highlight_pixel_values=batch["highlight_pixel_values"].to(device),
-        )
-        all_pred.append(outputs["z_pred"].cpu())
-        all_target.append(outputs["z_target"].cpu())
+        with _autocast_context(device, exp_cfg["precision"]):
+            outputs = model(
+                before_pixel_values=batch["before_pixel_values"].to(device),
+                input_ids=batch["input_ids"].to(device),
+                attention_mask=batch["attention_mask"].to(device),
+                highlight_pixel_values=batch["highlight_pixel_values"].to(device),
+            )
+        all_pred.append(outputs["z_pred"].float().cpu())
+        all_target.append(outputs["z_target"].float().cpu())
 
     z_pred = torch.cat(all_pred, dim=0)
     z_target = torch.cat(all_target, dim=0)
@@ -78,9 +82,9 @@ def eval_experiment(exp_cfg):
             }
         )
 
-    write_json(exp_cfg["output_dir"] / "eval" / "test_retrieval_summary.json", metrics)
+    write_json(exp_cfg["eval_summary"], metrics)
     write_csv(
-        exp_cfg["output_dir"] / "eval" / "test_retrieval_details.csv",
+        exp_cfg["eval_details"],
         details,
         [
             "sample_id",
@@ -96,14 +100,19 @@ def eval_experiment(exp_cfg):
             "highlight_image",
         ],
     )
-    np.save(exp_cfg["output_dir"] / "eval" / "test_similarity_matrix.npy", sim_np)
+    np.save(exp_cfg["similarity_matrix"], sim_np)
 
     return metrics, checkpoint.get("epoch", 0)
 
 
-def compare_experiments():
+def compare_experiments(experiment_names=None):
     rows = []
-    for exp_cfg in [config.EXP_A, config.EXP_B]:
+    names = experiment_names or config.DEFAULT_EXPERIMENT_ORDER
+    for name in names:
+        exp_cfg = config.EXPERIMENTS[name]
+        if not exp_cfg["best_checkpoint"].exists():
+            print(f"skip {name}: missing {exp_cfg['best_checkpoint']}")
+            continue
         metrics, best_epoch = eval_experiment(exp_cfg)
         rows.append(
             {
@@ -115,7 +124,7 @@ def compare_experiments():
                 "mean_rank": metrics["mean_rank"],
                 "median_rank": metrics["median_rank"],
                 "best_epoch": best_epoch,
-                "best_checkpoint": str(exp_cfg["output_dir"] / "checkpoints" / "best.pt"),
+                "best_checkpoint": str(exp_cfg["best_checkpoint"]),
             }
         )
     write_csv(

@@ -24,7 +24,7 @@ IMAGE_ROOT = Path("/data/baiyixue/CAD/op_orientated_render_data")
 TRAIN_MANIFEST = MANIFEST_DIR / "train_manifest.jsonl"
 TEST_MANIFEST = MANIFEST_DIR / "test_manifest.jsonl"
 EMPTY_BEFORE_IMAGE = OUTPUT_ROOT / "empty_before.png"
-COMPARE_CSV = OUTPUT_ROOT / "compare_exp_a_b.csv"
+COMPARE_CSV = OUTPUT_ROOT / "compare_experiments.csv"
 
 # =====================
 # Image file names
@@ -33,20 +33,19 @@ BEFORE_IMAGE_NAME = "previous_model_grid.png"
 HIGHLIGHT_IMAGE_NAME = "location.png"
 
 # =====================
-# CLIP config
+# Shared model / training defaults
 # =====================
-CLIP_MODEL_NAME = "openai/clip-vit-base-patch16"
-IMAGE_SIZE = 224
-EMBED_DIM = 512
+TEXT_MODEL_NAME = "openai/clip-vit-base-patch16"
+TEXT_EMBED_DIM = 512
+IMAGE_SIZE = 518
+FUSION_DIM = 1024
 
-# =====================
-# Training config
-# =====================
 BATCH_SIZE = 64
 NUM_EPOCHS = 30
 WEIGHT_DECAY = 1e-4
 NUM_WORKERS = 4
 DEVICE = "cuda"
+PRECISION = "bf16"  # one of: "fp32", "fp16", "bf16"
 TEMPERATURE = 0.07
 LAMBDA_COS = 1.0
 LAMBDA_MSE = 0.5
@@ -61,36 +60,147 @@ ALLOW_REMOTE_DATASET_FETCH = True
 DATASET_CACHE_REMOTE_IMAGES = True
 SKIP_OPS = {"chamfer_fillet"}
 
-# =====================
-# Experiment A
-# =====================
-EXP_A = {
-    "name": "exp_a_freeze_clip_predictor",
-    "output_dir": OUTPUT_ROOT / "exp_a_freeze_clip_predictor",
-    "freeze_clip_image_encoder": True,
-    "freeze_clip_text_encoder": True,
-    "freeze_target_encoder": True,
-    "use_lora": False,
-    "learning_rate_predictor": 1e-4,
-    "learning_rate_clip": 0.0,
-    "lora_rank": 0,
-    "lora_alpha": 0,
-    "lora_dropout": 0.0,
-}
+
+def experiment_paths(name: str) -> dict:
+    output_dir = OUTPUT_ROOT / name
+    return {
+        "output_dir": output_dir,
+        "checkpoint_dir": output_dir / "checkpoints",
+        "log_dir": output_dir / "logs",
+        "eval_dir": output_dir / "eval",
+        "latest_checkpoint": output_dir / "checkpoints" / "latest.pt",
+        "best_checkpoint": output_dir / "checkpoints" / "best.pt",
+        "train_log": output_dir / "logs" / "train_log.csv",
+        "config_snapshot": output_dir / "logs" / "experiment_config.json",
+        "eval_summary": output_dir / "eval" / "test_retrieval_summary.json",
+        "eval_details": output_dir / "eval" / "test_retrieval_details.csv",
+        "similarity_matrix": output_dir / "eval" / "test_similarity_matrix.npy",
+    }
+
+
+def make_exp(
+    name: str,
+    vision_model_name: str,
+    vision_embed_dim: int,
+    target_vision_model_name: str | None = None,
+    target_embed_dim: int | None = None,
+    train_source_lora: bool = False,
+    text_model_name: str = TEXT_MODEL_NAME,
+    text_embed_dim: int = TEXT_EMBED_DIM,
+    image_size: int = IMAGE_SIZE,
+    fusion_dim: int = FUSION_DIM,
+    batch_size: int = BATCH_SIZE,
+    precision: str = PRECISION,
+    learning_rate_head: float = 1e-4,
+    learning_rate_adapter: float = 1e-5,
+    learning_rate_text_proj: float = 1e-4,
+    learning_rate_image_proj: float = 1e-4,
+    lora_rank: int = 8,
+    lora_alpha: int = 16,
+    lora_dropout: float = 0.05,
+    lora_target_modules: list[str] | None = None,
+    notes: str = "",
+) -> dict:
+    target_name = target_vision_model_name or vision_model_name
+    target_dim = target_embed_dim or vision_embed_dim
+    return {
+        "name": name,
+        "vision_model_name": vision_model_name,
+        "vision_embed_dim": vision_embed_dim,
+        "target_vision_model_name": target_name,
+        "target_embed_dim": target_dim,
+        "text_model_name": text_model_name,
+        "text_embed_dim": text_embed_dim,
+        "image_size": image_size,
+        "fusion_dim": fusion_dim,
+        "batch_size": batch_size,
+        "precision": precision,
+        "freeze_source_vision": not train_source_lora,
+        "freeze_target_vision": True,
+        "freeze_text_encoder": True,
+        "train_source_lora": train_source_lora,
+        "learning_rate_head": learning_rate_head,
+        "learning_rate_adapter": learning_rate_adapter,
+        "learning_rate_text_proj": learning_rate_text_proj,
+        "learning_rate_image_proj": learning_rate_image_proj,
+        "lora_rank": lora_rank,
+        "lora_alpha": lora_alpha,
+        "lora_dropout": lora_dropout,
+        "lora_target_modules": lora_target_modules or ["query", "key", "value"],
+        "notes": notes,
+        **experiment_paths(name),
+    }
+
 
 # =====================
-# Experiment B
+# Experiment A: DINOv2-large frozen
 # =====================
-EXP_B = {
-    "name": "exp_b_lora_clip_image_text",
-    "output_dir": OUTPUT_ROOT / "exp_b_lora_clip_image_text",
-    "freeze_clip_image_encoder": False,
-    "freeze_clip_text_encoder": False,
-    "freeze_target_encoder": True,
-    "use_lora": True,
-    "learning_rate_predictor": 1e-4,
-    "learning_rate_clip": 1e-5,
-    "lora_rank": 8,
-    "lora_alpha": 16,
-    "lora_dropout": 0.05,
+EXP_A = make_exp(
+    name="exp_a_dinov2_large_frozen_signal",
+    vision_model_name="facebook/dinov2-large",
+    vision_embed_dim=1024,
+    notes="Frozen DINOv2-large source/target plus frozen CLIP text. Trains projections, fusion, predictor.",
+)
+
+# =====================
+# Experiment B: DINOv2-giant frozen
+# =====================
+EXP_B = make_exp(
+    name="exp_b_dinov2_giant_frozen_backbone",
+    vision_model_name="facebook/dinov2-giant",
+    vision_embed_dim=1536,
+    notes="Frozen DINOv2-giant source/target. Same trainable head as experiment A.",
+)
+
+# =====================
+# Experiment C: source DINO LoRA / adapter
+# =====================
+EXP_C_LARGE = make_exp(
+    name="exp_c_dinov2_large_source_lora",
+    vision_model_name="facebook/dinov2-large",
+    vision_embed_dim=1024,
+    train_source_lora=True,
+    notes="DINOv2-large source encoder uses LoRA; target encoder stays frozen.",
+)
+
+EXP_C_GIANT = make_exp(
+    name="exp_c_dinov2_giant_source_lora",
+    vision_model_name="facebook/dinov2-giant",
+    vision_embed_dim=1536,
+    train_source_lora=True,
+    notes="DINOv2-giant source encoder uses LoRA; target encoder stays frozen.",
+)
+
+# =====================
+# Experiment D: stronger frozen target space
+# =====================
+# Replace this with the exact local/Hugging Face DINOv3-7B checkpoint available
+# on the training machine before running experiment D.
+DINO_V3_7B_MODEL_NAME = "REPLACE_WITH_DINOV3_7B_MODEL_OR_LOCAL_PATH"
+DINO_V3_7B_EMBED_DIM = 4096
+
+EXP_D = make_exp(
+    name="exp_d_dinov2_large_to_dinov3_7b_target",
+    vision_model_name="facebook/dinov2-large",
+    vision_embed_dim=1024,
+    target_vision_model_name=DINO_V3_7B_MODEL_NAME,
+    target_embed_dim=DINO_V3_7B_EMBED_DIM,
+    fusion_dim=1024,
+    notes="DINOv2-large source predicts a frozen stronger DINOv3 target embedding space.",
+)
+
+EXPERIMENTS = {
+    EXP_A["name"]: EXP_A,
+    EXP_B["name"]: EXP_B,
+    EXP_C_LARGE["name"]: EXP_C_LARGE,
+    EXP_C_GIANT["name"]: EXP_C_GIANT,
+    EXP_D["name"]: EXP_D,
 }
+
+DEFAULT_EXPERIMENT_ORDER = [
+    EXP_A["name"],
+    EXP_B["name"],
+    EXP_C_LARGE["name"],
+    EXP_C_GIANT["name"],
+    EXP_D["name"],
+]

@@ -10,9 +10,8 @@ from .utils import load_pil_image, read_jsonl
 
 
 class CADJEPADataset(Dataset):
-    def __init__(self, manifest_path, processor=None, cache_remote_images: bool = True):
+    def __init__(self, manifest_path, cache_remote_images: bool = True):
         self.manifest_path = manifest_path
-        self.processor = processor
         self.cache_remote_images = cache_remote_images
         self.samples = read_jsonl(manifest_path)
 
@@ -33,26 +32,35 @@ class CADJEPADataset(Dataset):
         }
 
 
-def build_collate_fn(processor) -> Callable:
+def build_collate_fn(image_processor, tokenizer, image_size: int) -> Callable:
     def collate_fn(batch):
         before_images = [item["before_image"] for item in batch]
         highlight_images = [item["highlight_image"] for item in batch]
         instructions = [item["instruction"] for item in batch]
 
-        batch_inputs = processor(
-            text=instructions,
+        before_inputs = image_processor(
             images=before_images,
             return_tensors="pt",
-            padding=True,
+            size={"height": image_size, "width": image_size},
         )
-        target_inputs = processor(images=highlight_images, return_tensors="pt")
+        target_inputs = image_processor(
+            images=highlight_images,
+            return_tensors="pt",
+            size={"height": image_size, "width": image_size},
+        )
+        text_inputs = tokenizer(
+            instructions,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+        )
 
         return {
             "sample_ids": [item["sample_id"] for item in batch],
-            "before_pixel_values": batch_inputs["pixel_values"],
-            "input_ids": batch_inputs["input_ids"],
-            "attention_mask": batch_inputs["attention_mask"],
+            "before_pixel_values": before_inputs["pixel_values"],
             "highlight_pixel_values": target_inputs["pixel_values"],
+            "input_ids": text_inputs["input_ids"],
+            "attention_mask": text_inputs["attention_mask"],
             "instructions": instructions,
             "before_image_paths": [item["before_image_path"] for item in batch],
             "highlight_image_paths": [item["highlight_image_path"] for item in batch],
