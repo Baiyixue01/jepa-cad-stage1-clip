@@ -70,6 +70,14 @@ python run_all_experiments.py
 
 `run_all_experiments.py` 默认不包含实验 D，因为 D 的 DINOv3/7B 模型名是占位符；确认本地权重后可以单独运行 `python run_exp_d.py`。
 
+三卡并行启动 `EXP_A`、`EXP_B`、`EXP_FIRST`：
+
+```bash
+bash scripts/launch_exp_a_b_first_3gpu.sh
+```
+
+脚本默认使用 GPU `0/1/2`，并要求 `config.py` 中已经定义 `EXP_FIRST`。每个实验的 stdout/stderr 会写到自己的 `logs/stdout.log`。
+
 评估 retrieval：
 
 ```bash
