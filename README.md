@@ -90,6 +90,30 @@ python eval_retrieval.py
 - 实验输出: `jepa_stage1_clip_ablation/outputs/<experiment_name>/`
 - Checkpoint: `jepa_stage1_clip_ablation/outputs/<experiment_name>/checkpoints/`
 - 训练日志: `jepa_stage1_clip_ablation/outputs/<experiment_name>/logs/train_log.csv`
+- Step 级训练日志: `jepa_stage1_clip_ablation/outputs/<experiment_name>/logs/train_step_log.csv`
+- stdout/stderr: `jepa_stage1_clip_ablation/outputs/<experiment_name>/logs/stdout.log`
 - 实验配置快照: `jepa_stage1_clip_ablation/outputs/<experiment_name>/logs/experiment_config.json`
 - Retrieval 结果: `jepa_stage1_clip_ablation/outputs/<experiment_name>/eval/`
 - 汇总结果: `jepa_stage1_clip_ablation/outputs/compare_experiments.csv`
+
+## 启动阶段日志
+
+训练启动时 stdout 会打印 `[stage]` 前缀的阶段提示，包括：
+
+- 初始化随机种子和输出目录
+- 加载 image processor / tokenizer
+- 构建 dataset / dataloader
+- 加载 source / target / text 模型
+- 移动模型到 GPU
+- 构建 optimizer
+- 第一个 batch 完成加载
+- 每个 epoch 的 retrieval 评估和日志写入
+
+第一个 batch 前 CPU 占用高通常来自模型权重读取、DataLoader worker 启动、PIL 图像解码、resize 和文本 tokenizer。可调参数在 `config.py`：
+
+```python
+NUM_WORKERS = 4
+PREFETCH_FACTOR = 4
+PERSISTENT_WORKERS = True
+LOG_EVERY_STEPS = 20
+```

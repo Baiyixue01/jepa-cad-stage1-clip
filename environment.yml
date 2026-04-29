@@ -16,3 +16,4 @@ dependencies:
       - transformers>=4.40
       - peft>=0.10
       - accelerate>=0.29
+      - tqdm>=4.66

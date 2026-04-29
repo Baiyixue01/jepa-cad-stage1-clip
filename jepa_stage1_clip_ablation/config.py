@@ -44,6 +44,8 @@ BATCH_SIZE = 64
 NUM_EPOCHS = 30
 WEIGHT_DECAY = 1e-4
 NUM_WORKERS = 4
+PREFETCH_FACTOR = 4
+PERSISTENT_WORKERS = True
 DEVICE = "cuda"
 PRECISION = "bf16"  # one of: "fp32", "fp16", "bf16"
 TEMPERATURE = 0.07
@@ -52,6 +54,8 @@ LAMBDA_MSE = 0.5
 LAMBDA_CONTRASTIVE = 1.0
 SEED = 42
 SAVE_EVERY_EPOCH = True
+LOG_EVERY_STEPS = 20
+STAGE_LOG_ENABLED = True
 
 # =====================
 # Manifest / data behavior
@@ -71,6 +75,7 @@ def experiment_paths(name: str) -> dict:
         "latest_checkpoint": output_dir / "checkpoints" / "latest.pt",
         "best_checkpoint": output_dir / "checkpoints" / "best.pt",
         "train_log": output_dir / "logs" / "train_log.csv",
+        "train_step_log": output_dir / "logs" / "train_step_log.csv",
         "config_snapshot": output_dir / "logs" / "experiment_config.json",
         "eval_summary": output_dir / "eval" / "test_retrieval_summary.json",
         "eval_details": output_dir / "eval" / "test_retrieval_details.csv",
