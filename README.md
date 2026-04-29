@@ -91,6 +91,7 @@ python eval_retrieval.py
 - Checkpoint: `jepa_stage1_clip_ablation/outputs/<experiment_name>/checkpoints/`
 - 训练日志: `jepa_stage1_clip_ablation/outputs/<experiment_name>/logs/train_log.csv`
 - Step 级训练日志: `jepa_stage1_clip_ablation/outputs/<experiment_name>/logs/train_step_log.csv`
+- 坏图/坏样本日志: `jepa_stage1_clip_ablation/outputs/<experiment_name>/logs/bad_samples.csv`
 - stdout/stderr: `jepa_stage1_clip_ablation/outputs/<experiment_name>/logs/stdout.log`
 - 实验配置快照: `jepa_stage1_clip_ablation/outputs/<experiment_name>/logs/experiment_config.json`
 - Retrieval 结果: `jepa_stage1_clip_ablation/outputs/<experiment_name>/eval/`
@@ -117,6 +118,8 @@ PREFETCH_FACTOR = 4
 PERSISTENT_WORKERS = True
 LOG_EVERY_STEPS = 20
 ```
+
+如果遇到坏图，默认 `SKIP_BAD_IMAGES = True` 会跳过坏样本并记录到 `bad_samples.csv`，训练不会因为单张损坏图片停止。
 
 ## Manifest 路径修复
 

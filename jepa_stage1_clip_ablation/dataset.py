@@ -31,9 +31,22 @@ class CADJEPADataset(Dataset):
         row = self.samples[idx]
         before_image_path = resolve_manifest_image_path(row["before_image"])
         highlight_image_path = resolve_manifest_image_path(row["highlight_image"])
-        before_image = load_pil_image(before_image_path, cache_remote=self.cache_remote_images)
-        highlight_image = load_pil_image(highlight_image_path, cache_remote=self.cache_remote_images)
+        try:
+            before_image = load_pil_image(before_image_path, cache_remote=self.cache_remote_images)
+            highlight_image = load_pil_image(highlight_image_path, cache_remote=self.cache_remote_images)
+        except Exception as exc:
+            if not config.SKIP_BAD_IMAGES:
+                raise
+            return {
+                "is_bad_sample": True,
+                "sample_id": row.get("sample_id", ""),
+                "before_image_path": before_image_path,
+                "highlight_image_path": highlight_image_path,
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            }
         return {
+            "is_bad_sample": False,
             "sample_id": row["sample_id"],
             "before_image": before_image,
             "highlight_image": highlight_image,
@@ -45,6 +58,14 @@ class CADJEPADataset(Dataset):
 
 def build_collate_fn(image_processor, tokenizer, image_size: int) -> Callable:
     def collate_fn(batch):
+        bad_samples = [item for item in batch if item.get("is_bad_sample")]
+        batch = [item for item in batch if not item.get("is_bad_sample")]
+        if not batch:
+            return {
+                "skip_batch": True,
+                "bad_samples": bad_samples,
+            }
+
         before_images = [item["before_image"] for item in batch]
         highlight_images = [item["highlight_image"] for item in batch]
         instructions = [item["instruction"] for item in batch]
@@ -75,6 +96,8 @@ def build_collate_fn(image_processor, tokenizer, image_size: int) -> Callable:
             "instructions": instructions,
             "before_image_paths": [item["before_image_path"] for item in batch],
             "highlight_image_paths": [item["highlight_image_path"] for item in batch],
+            "bad_samples": bad_samples,
+            "skip_batch": False,
         }
 
     return collate_fn

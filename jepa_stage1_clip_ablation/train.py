@@ -97,16 +97,31 @@ def _evaluate_retrieval(model, loader, device, precision: str):
     model.eval()
     all_pred = []
     all_target = []
+    skipped_bad_samples = 0
+    skipped_empty_batches = 0
     for batch in loader:
+        if batch.get("bad_samples"):
+            skipped_bad_samples += len(batch["bad_samples"])
+        if batch.get("skip_batch"):
+            skipped_empty_batches += 1
+            continue
         with _autocast_context(device, precision):
             outputs = model(
                 before_pixel_values=batch["before_pixel_values"].to(device),
                 input_ids=batch["input_ids"].to(device),
                 attention_mask=batch["attention_mask"].to(device),
                 highlight_pixel_values=batch["highlight_pixel_values"].to(device),
-            )
+        )
         all_pred.append(outputs["z_pred"].float().cpu())
         all_target.append(outputs["z_target"].float().cpu())
+    if skipped_bad_samples:
+        print(
+            f"[bad_sample] eval skipped_bad_samples={skipped_bad_samples} "
+            f"skipped_empty_batches={skipped_empty_batches}",
+            flush=True,
+        )
+    if not all_pred:
+        raise RuntimeError("No valid evaluation batches were produced. Check image paths and bad_samples log.")
     similarity = normalize_embeddings(torch.cat(all_pred, dim=0)) @ normalize_embeddings(torch.cat(all_target, dim=0)).T
     metrics, _ = compute_retrieval_metrics(similarity)
     return metrics
@@ -159,6 +174,22 @@ def _learning_rate(optimizer) -> float:
     return float(optimizer.param_groups[0]["lr"])
 
 
+def _bad_sample_rows(exp_cfg, epoch: int, step: int, bad_samples: list[dict]) -> list[dict]:
+    return [
+        {
+            "experiment_name": exp_cfg["name"],
+            "epoch": epoch,
+            "step": step,
+            "sample_id": item.get("sample_id", ""),
+            "before_image": item.get("before_image_path", ""),
+            "highlight_image": item.get("highlight_image_path", ""),
+            "error_type": item.get("error_type", ""),
+            "error": item.get("error", ""),
+        }
+        for item in bad_samples
+    ]
+
+
 def train_experiment(exp_cfg):
     from transformers import AutoImageProcessor, AutoTokenizer
 
@@ -195,6 +226,7 @@ def train_experiment(exp_cfg):
     best_epoch = 0
     logs = []
     step_logs = []
+    bad_sample_logs = []
 
     for epoch in range(1, config.NUM_EPOCHS + 1):
         _log_stage(f"START epoch {epoch}/{config.NUM_EPOCHS}")
@@ -209,6 +241,33 @@ def train_experiment(exp_cfg):
             leave=True,
         )
         for step, batch in enumerate(progress, start=1):
+            if batch.get("bad_samples"):
+                rows = _bad_sample_rows(exp_cfg, epoch, step, batch["bad_samples"])
+                bad_sample_logs.extend(rows)
+                for row in rows:
+                    print(
+                        f"[bad_sample] epoch={epoch} step={step} sample_id={row['sample_id']} "
+                        f"highlight={row['highlight_image']} error={row['error_type']}: {row['error']}",
+                        flush=True,
+                    )
+                write_csv(
+                    exp_cfg["bad_samples_log"],
+                    bad_sample_logs,
+                    [
+                        "experiment_name",
+                        "epoch",
+                        "step",
+                        "sample_id",
+                        "before_image",
+                        "highlight_image",
+                        "error_type",
+                        "error",
+                    ],
+                )
+            if batch.get("skip_batch"):
+                print(f"[bad_sample] skipped empty batch at epoch={epoch} step={step}", flush=True)
+                continue
+
             if epoch == 1 and step == 1:
                 _log_stage("first batch loaded; CPU image decode/resize/tokenization warmup is complete")
             optimizer.zero_grad(set_to_none=True)
@@ -231,6 +290,7 @@ def train_experiment(exp_cfg):
             running["mse"] += loss_mse.item()
             running["contrastive"] += loss_contrastive.item()
             running["steps"] += 1
+            effective_batch_size = int(batch["before_pixel_values"].shape[0])
 
             avg_loss = running["loss"] / running["steps"]
             progress.set_postfix(
@@ -255,6 +315,8 @@ def train_experiment(exp_cfg):
                     "loss_contrastive": loss_contrastive.item(),
                     "avg_loss": avg_loss,
                     "gpu_peak_memory_gb": _gpu_memory_gb(device),
+                    "effective_batch_size": effective_batch_size,
+                    "bad_samples_in_batch": len(batch.get("bad_samples", [])),
                 }
                 step_logs.append(step_row)
                 print(
@@ -262,6 +324,7 @@ def train_experiment(exp_cfg):
                     f"loss={step_row['loss']:.4f} avg_loss={step_row['avg_loss']:.4f} "
                     f"cos={step_row['loss_cos']:.4f} mse={step_row['loss_mse']:.4f} "
                     f"contrastive={step_row['loss_contrastive']:.4f} "
+                    f"bs={effective_batch_size} bad={step_row['bad_samples_in_batch']} "
                     f"mem={step_row['gpu_peak_memory_gb']:.1f}GB"
                 )
 
@@ -335,6 +398,22 @@ def train_experiment(exp_cfg):
                     "loss_contrastive",
                     "avg_loss",
                     "gpu_peak_memory_gb",
+                    "effective_batch_size",
+                    "bad_samples_in_batch",
+                ],
+            )
+            write_csv(
+                exp_cfg["bad_samples_log"],
+                bad_sample_logs,
+                [
+                    "experiment_name",
+                    "epoch",
+                    "step",
+                    "sample_id",
+                    "before_image",
+                    "highlight_image",
+                    "error_type",
+                    "error",
                 ],
             )
         _log_stage(f"DONE epoch {epoch}/{config.NUM_EPOCHS}")
@@ -372,6 +451,22 @@ def train_experiment(exp_cfg):
             "loss_contrastive",
             "avg_loss",
             "gpu_peak_memory_gb",
+            "effective_batch_size",
+            "bad_samples_in_batch",
+        ],
+    )
+    write_csv(
+        exp_cfg["bad_samples_log"],
+        bad_sample_logs,
+        [
+            "experiment_name",
+            "epoch",
+            "step",
+            "sample_id",
+            "before_image",
+            "highlight_image",
+            "error_type",
+            "error",
         ],
     )
     print(f"best epoch for {exp_cfg['name']}: {best_epoch}")

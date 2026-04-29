@@ -38,6 +38,7 @@ def eval_experiment(exp_cfg):
         pin_memory=True,
     )
     manifest_rows = read_jsonl(config.TEST_MANIFEST)
+    manifest_by_id = {row["sample_id"]: row for row in manifest_rows}
 
     model = create_model(exp_cfg).to(device)
     checkpoint = torch.load(checkpoint_path, map_location=device)
@@ -46,16 +47,34 @@ def eval_experiment(exp_cfg):
 
     all_pred = []
     all_target = []
+    valid_rows = []
+    skipped_bad_samples = 0
+    skipped_empty_batches = 0
     for batch in loader:
+        if batch.get("bad_samples"):
+            skipped_bad_samples += len(batch["bad_samples"])
+        if batch.get("skip_batch"):
+            skipped_empty_batches += 1
+            continue
         with _autocast_context(device, exp_cfg["precision"]):
             outputs = model(
                 before_pixel_values=batch["before_pixel_values"].to(device),
                 input_ids=batch["input_ids"].to(device),
                 attention_mask=batch["attention_mask"].to(device),
                 highlight_pixel_values=batch["highlight_pixel_values"].to(device),
-            )
+        )
         all_pred.append(outputs["z_pred"].float().cpu())
         all_target.append(outputs["z_target"].float().cpu())
+        valid_rows.extend([manifest_by_id[sample_id] for sample_id in batch["sample_ids"]])
+
+    if skipped_bad_samples:
+        print(
+            f"[bad_sample] eval skipped_bad_samples={skipped_bad_samples} "
+            f"skipped_empty_batches={skipped_empty_batches}",
+            flush=True,
+        )
+    if not all_pred:
+        raise RuntimeError("No valid evaluation batches were produced. Check image paths and bad samples.")
 
     z_pred = torch.cat(all_pred, dim=0)
     z_target = torch.cat(all_target, dim=0)
@@ -64,7 +83,7 @@ def eval_experiment(exp_cfg):
     sim_np = similarity.numpy()
 
     details = []
-    for idx, row in enumerate(manifest_rows):
+    for idx, row in enumerate(valid_rows):
         best_idx = int(np.argmax(sim_np[idx]))
         details.append(
             {
@@ -74,7 +93,7 @@ def eval_experiment(exp_cfg):
                 "top5": int(ranks[idx] <= 5),
                 "top10": int(ranks[idx] <= 10),
                 "positive_similarity": float(sim_np[idx, idx]),
-                "best_match_sample_id": manifest_rows[best_idx]["sample_id"],
+                "best_match_sample_id": valid_rows[best_idx]["sample_id"],
                 "best_match_similarity": float(sim_np[idx, best_idx]),
                 "instruction": row["instruction"],
                 "before_image": row["before_image"],
