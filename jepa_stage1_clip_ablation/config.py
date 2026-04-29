@@ -35,7 +35,7 @@ HIGHLIGHT_IMAGE_NAME = "location.png"
 # =====================
 # Shared model / training defaults
 # =====================
-TEXT_MODEL_NAME = "openai/clip-vit-base-patch16"
+TEXT_MODEL_NAME = "/data/baiyixue/inference_model/clip-vit-base-patch16"
 TEXT_EMBED_DIM = 512
 IMAGE_SIZE = 518
 FUSION_DIM = 1024
@@ -152,7 +152,7 @@ def make_exp(
 # =====================
 EXP_A = make_exp(
     name="exp_a_dinov2_large_frozen_signal",
-    vision_model_name="facebook/dinov2-large",
+    vision_model_name="/data/baiyixue/inference_model/dinov2-large",
     vision_embed_dim=1024,
     notes="Frozen DINOv2-large source/target plus frozen CLIP text. Trains projections, fusion, predictor.",
 )
@@ -162,7 +162,7 @@ EXP_A = make_exp(
 # =====================
 EXP_B = make_exp(
     name="exp_b_dinov2_giant_frozen_backbone",
-    vision_model_name="facebook/dinov2-giant",
+    vision_model_name="/data/baiyixue/inference_model/dinov2-giant",
     vision_embed_dim=1536,
     notes="Frozen DINOv2-giant source/target. Same trainable head as experiment A.",
 )
@@ -172,7 +172,7 @@ EXP_B = make_exp(
 # =====================
 EXP_C_LARGE = make_exp(
     name="exp_c_dinov2_large_source_lora",
-    vision_model_name="facebook/dinov2-large",
+    vision_model_name="/data/baiyixue/inference_model/dinov2-large",
     vision_embed_dim=1024,
     train_source_lora=True,
     notes="DINOv2-large source encoder uses LoRA; target encoder stays frozen.",
@@ -180,7 +180,7 @@ EXP_C_LARGE = make_exp(
 
 EXP_C_GIANT = make_exp(
     name="exp_c_dinov2_giant_source_lora",
-    vision_model_name="facebook/dinov2-giant",
+    vision_model_name="/data/baiyixue/inference_model/dinov2-giant",
     vision_embed_dim=1536,
     train_source_lora=True,
     notes="DINOv2-giant source encoder uses LoRA; target encoder stays frozen.",
@@ -191,12 +191,12 @@ EXP_C_GIANT = make_exp(
 # =====================
 # Replace this with the exact local/Hugging Face DINOv3-7B checkpoint available
 # on the training machine before running experiment D.
-DINO_V3_7B_MODEL_NAME = "REPLACE_WITH_DINOV3_7B_MODEL_OR_LOCAL_PATH"
+DINO_V3_7B_MODEL_NAME = "/data/baiyixue/inference_model/dinov3-7b"
 DINO_V3_7B_EMBED_DIM = 4096
 
 EXP_D = make_exp(
     name="exp_d_dinov2_large_to_dinov3_7b_target",
-    vision_model_name="facebook/dinov2-large",
+    vision_model_name="/data/baiyixue/inference_model/dinov2-large",
     vision_embed_dim=1024,
     target_vision_model_name=DINO_V3_7B_MODEL_NAME,
     target_embed_dim=DINO_V3_7B_EMBED_DIM,
@@ -209,7 +209,7 @@ EXP_D = make_exp(
 # =====================
 EXP_REG_GIANT_TRANSFORMER = make_exp(
     name="exp_e_dinov2_registers_giant_fusion_transformer",
-    vision_model_name="facebook/dinov2-with-registers-giant",
+    vision_model_name="/data/baiyixue/inference_model/dinov2-with-registers-giant",
     vision_embed_dim=1536,
     fusion_arch="transformer",
     fusion_layers=4,
@@ -222,13 +222,33 @@ EXP_REG_GIANT_TRANSFORMER = make_exp(
     ),
 )
 
+EXP_FIRST = make_exp(
+    name="exp_first_registers_giant_transformer_strong",
+    vision_model_name="/data/baiyixue/inference_model/dinov2-with-registers-giant",
+    vision_embed_dim=1536,
+    fusion_dim=1536,
+    fusion_arch="transformer",
+    fusion_layers=4,
+    fusion_heads=8,
+    fusion_dropout=0.0,
+    predictor_arch="mlp",
+    batch_size=32,
+    precision="bf16",
+    learning_rate_head=1e-4,
+    learning_rate_image_proj=1e-4,
+    learning_rate_text_proj=1e-4,
+    notes="First strong trial: frozen DINOv2-with-registers-giant source/target, frozen CLIP text, train fusion transformer and predictor.",
+)
+
 EXPERIMENTS = {
+    EXP_FIRST["name"]: EXP_FIRST,
     EXP_A["name"]: EXP_A,
     EXP_B["name"]: EXP_B,
     EXP_C_LARGE["name"]: EXP_C_LARGE,
     EXP_C_GIANT["name"]: EXP_C_GIANT,
     EXP_D["name"]: EXP_D,
     EXP_REG_GIANT_TRANSFORMER["name"]: EXP_REG_GIANT_TRANSFORMER,
+    
 }
 
 DEFAULT_EXPERIMENT_ORDER = [
@@ -238,3 +258,4 @@ DEFAULT_EXPERIMENT_ORDER = [
     EXP_C_GIANT["name"],
     EXP_REG_GIANT_TRANSFORMER["name"],
 ]
+
