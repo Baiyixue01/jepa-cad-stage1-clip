@@ -30,14 +30,20 @@ def _safe_int(value: str | int | None, default: int = 0) -> int:
     return int(value)
 
 
-def _load_valid_manifest_by_eval_order(details: list[dict]) -> dict[str, dict]:
-    manifest_by_id = {row["sample_id"]: row for row in read_jsonl(config.TEST_MANIFEST)}
+def _load_valid_manifest_by_eval_order(details: list[dict], manifest_path: Path) -> dict[str, dict]:
+    if not manifest_path.exists():
+        return {row["sample_id"]: {} for row in details}
+    manifest_by_id = {row["sample_id"]: row for row in read_jsonl(manifest_path)}
     return {row["sample_id"]: manifest_by_id.get(row["sample_id"], {}) for row in details}
 
 
-def _rank_sample_rows(details: list[dict], similarity: np.ndarray | None) -> list[dict]:
+def _rank_sample_rows(
+    details: list[dict],
+    similarity: np.ndarray | None,
+    manifest_path: Path,
+) -> list[dict]:
     rows = []
-    valid_manifest = _load_valid_manifest_by_eval_order(details)
+    valid_manifest = _load_valid_manifest_by_eval_order(details, manifest_path)
     sample_ids = [row["sample_id"] for row in details]
 
     for idx, row in enumerate(details):
@@ -138,6 +144,7 @@ def analyze_experiment(
     exp_cfg: dict,
     num_samples: int = DEFAULT_NUM_SAMPLES,
     top_k_matches: int = DEFAULT_TOP_K_MATCHES,
+    manifest_path: Path = config.TEST_MANIFEST,
 ) -> dict:
     details_path = exp_cfg["eval_details"]
     similarity_path = exp_cfg["similarity_matrix"]
@@ -146,7 +153,7 @@ def analyze_experiment(
 
     details = _read_csv(details_path)
     similarity = np.load(similarity_path) if similarity_path.exists() else None
-    sample_rows = _rank_sample_rows(details, similarity)
+    sample_rows = _rank_sample_rows(details, similarity, manifest_path)
 
     output_dir = ensure_dir(exp_cfg["eval_dir"] / "sample_analysis")
     all_samples_path = output_dir / "all_samples_ranked.csv"
@@ -222,7 +229,34 @@ def analyze_experiment(
     return summary
 
 
+def _exp_cfg_from_eval_output(path: Path) -> dict:
+    path = path.expanduser().resolve()
+    if path.is_file():
+        eval_dir = path.parent
+        details_path = path
+    elif (path / "test_retrieval_details.csv").exists():
+        eval_dir = path
+        details_path = path / "test_retrieval_details.csv"
+    elif (path / "eval" / "test_retrieval_details.csv").exists():
+        eval_dir = path / "eval"
+        details_path = eval_dir / "test_retrieval_details.csv"
+    else:
+        raise FileNotFoundError(
+            "Could not find test_retrieval_details.csv in "
+            f"{path}, {path / 'eval'}, or as a direct file path."
+        )
+
+    return {
+        "name": eval_dir.parent.name,
+        "eval_dir": eval_dir,
+        "eval_details": details_path,
+        "similarity_matrix": eval_dir / "test_similarity_matrix.npy",
+    }
+
+
 def _select_experiments(args: argparse.Namespace) -> list[dict]:
+    if args.eval_output:
+        return [_exp_cfg_from_eval_output(Path(path)) for path in args.eval_output]
     if args.all:
         names = [
             name
@@ -250,6 +284,14 @@ def parse_args() -> argparse.Namespace:
         help="Experiment name. Can be repeated. Defaults to experiment E.",
     )
     parser.add_argument(
+        "--eval-output",
+        action="append",
+        help=(
+            "Path to an eval output directory, an experiment output directory, "
+            "or test_retrieval_details.csv. Can be repeated."
+        ),
+    )
+    parser.add_argument(
         "--all",
         action="store_true",
         help="Analyze all registered experiments except experiment D.",
@@ -266,6 +308,12 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_TOP_K_MATCHES,
         help="Number of nearest target candidates to export for each bad sample.",
     )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=config.TEST_MANIFEST,
+        help="Manifest used to enrich rows with op metadata. Defaults to config.TEST_MANIFEST.",
+    )
     return parser.parse_args()
 
 
@@ -276,6 +324,7 @@ def main() -> None:
             exp_cfg,
             num_samples=args.num_samples,
             top_k_matches=args.top_k_matches,
+            manifest_path=args.manifest,
         )
         print(
             f"{summary['experiment_name']}: "

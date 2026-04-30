@@ -105,9 +105,10 @@ GPU_IDS=0,1,2,3,4,5 bash scripts/eval_all_except_d_parallel.sh
 ```bash
 python analyze_samples.py --experiment exp_e_dinov2_registers_giant_fusion_transformer --num-samples 50 --top-k-matches 5
 python analyze_samples.py --all --num-samples 50 --top-k-matches 5
+python analyze_samples.py --eval-output jepa_stage1_clip_ablation/outputs/exp_e_dinov2_registers_giant_fusion_transformer/eval --num-samples 50 --top-k-matches 5
 ```
 
-分析结果写到每个实验的 `eval/sample_analysis/`。其中 `good_samples.csv` 是 rank 高、正负样本 margin 大的样本，`bad_samples.csv` 是 rank 差、margin 小或为负的样本，`bad_sample_top_matches.csv` 会列出差样本最相似的 top-k target 候选，方便看模型具体混淆到了哪些 CAD 操作。
+`--eval-output` 可以传 `eval/` 目录、实验输出目录，或直接传 `test_retrieval_details.csv` 文件。分析结果写到每个实验的 `eval/sample_analysis/`。其中 `good_samples.csv` 是 rank 高、正负样本 margin 大的样本，`bad_samples.csv` 是 rank 差、margin 小或为负的样本，`bad_sample_top_matches.csv` 会列出差样本最相似的 top-k target 候选，方便看模型具体混淆到了哪些 CAD 操作。
 
 ## 输出位置
 
