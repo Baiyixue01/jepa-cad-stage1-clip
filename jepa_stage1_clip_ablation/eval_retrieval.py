@@ -62,7 +62,7 @@ def eval_experiment(exp_cfg):
                 input_ids=batch["input_ids"].to(device),
                 attention_mask=batch["attention_mask"].to(device),
                 highlight_pixel_values=batch["highlight_pixel_values"].to(device),
-        )
+            )
         all_pred.append(outputs["z_pred"].float().cpu())
         all_target.append(outputs["z_target"].float().cpu())
         valid_rows.extend([manifest_by_id[sample_id] for sample_id in batch["sample_ids"]])

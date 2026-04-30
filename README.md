@@ -92,6 +92,14 @@ GPU_IDS=0,1,2,3,4,5 BATCH_SIZE_OVERRIDE=64 bash scripts/launch_all_except_d_para
 python eval_retrieval.py
 ```
 
+并行评估除实验 D 以外所有已完成实验，每个实验一张卡：
+
+```bash
+GPU_IDS=0,1,2,3,4,5 bash scripts/eval_all_except_d_parallel.sh
+```
+
+脚本只评估已经有 `checkpoints/best.pt` 的实验。每个实验的评估日志写到自己的 `eval/eval_stdout.log`，所有实验结束后再统一写 `outputs/compare_experiments.csv`。
+
 ## 输出位置
 
 - Manifest: `jepa_stage1_clip_ablation/outputs/manifests/`
