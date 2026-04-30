@@ -254,6 +254,7 @@ EXPERIMENTS = {
 }
 
 DEFAULT_EXPERIMENT_ORDER = [
+    EXP_FIRST["name"],
     EXP_A["name"],
     EXP_B["name"],
     EXP_C_LARGE["name"],
