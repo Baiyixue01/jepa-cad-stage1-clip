@@ -100,6 +100,15 @@ GPU_IDS=0,1,2,3,4,5 bash scripts/eval_all_except_d_parallel.sh
 
 脚本只评估已经有 `checkpoints/best.pt` 的实验。每个实验的评估日志写到自己的 `eval/eval_stdout.log`，所有实验结束后再统一写 `outputs/compare_experiments.csv`。
 
+分析 retrieval 中比较好和比较差的样本：
+
+```bash
+python analyze_samples.py --experiment exp_e_dinov2_registers_giant_fusion_transformer --num-samples 50 --top-k-matches 5
+python analyze_samples.py --all --num-samples 50 --top-k-matches 5
+```
+
+分析结果写到每个实验的 `eval/sample_analysis/`。其中 `good_samples.csv` 是 rank 高、正负样本 margin 大的样本，`bad_samples.csv` 是 rank 差、margin 小或为负的样本，`bad_sample_top_matches.csv` 会列出差样本最相似的 top-k target 候选，方便看模型具体混淆到了哪些 CAD 操作。
+
 ## 输出位置
 
 - Manifest: `jepa_stage1_clip_ablation/outputs/manifests/`
