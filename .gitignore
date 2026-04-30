@@ -7,3 +7,4 @@ jepa_stage1_clip_ablation/outputs/*/checkpoints/
 jepa_stage1_clip_ablation/outputs/*/logs/
 jepa_stage1_clip_ablation/outputs/*/eval/
 jepa_stage1_clip_ablation/outputs/compare_experiments.csv
+*result*
