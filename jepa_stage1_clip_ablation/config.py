@@ -191,9 +191,7 @@ EXP_C_GIANT = make_exp(
 # =====================
 # Experiment D: stronger frozen target space
 # =====================
-# Replace this with the exact local/Hugging Face DINOv3-7B checkpoint available
-# on the training machine before running experiment D.
-DINO_V3_7B_MODEL_NAME = "REPLACE_WITH_DINOV3_7B_MODEL_OR_LOCAL_PATH"
+DINO_V3_7B_MODEL_NAME = "/data/baiyixue/inference_model/dinov3-vit7b16-pretrain-lvd1689m"
 DINO_V3_7B_EMBED_DIM = 4096
 
 EXP_D = make_exp(
@@ -242,6 +240,29 @@ EXP_FIRST = make_exp(
     notes="First strong trial: frozen DINOv2-with-registers-giant source/target, frozen CLIP text, train fusion transformer and predictor.",
 )
 
+# =====================
+# Experiment F: best E source/fusion with DINOv3-7B target
+# =====================
+EXP_F = make_exp(
+    name="exp_f_registers_giant_to_dinov3_7b_target_transformer",
+    vision_model_name="/data/baiyixue/inference_model/dinov2-with-registers-giant",
+    vision_embed_dim=1536,
+    target_vision_model_name=DINO_V3_7B_MODEL_NAME,
+    target_embed_dim=DINO_V3_7B_EMBED_DIM,
+    fusion_dim=1536,
+    fusion_arch="transformer",
+    fusion_layers=4,
+    fusion_heads=8,
+    fusion_dropout=0.0,
+    predictor_arch="mlp",
+    batch_size=16,
+    precision="bf16",
+    notes=(
+        "Best experiment E source/fusion setup, but predicts frozen DINOv3-7B "
+        "target embeddings. Compare directly against experiment E."
+    ),
+)
+
 EXPERIMENTS = {
     EXP_FIRST["name"]: EXP_FIRST,
     EXP_A["name"]: EXP_A,
@@ -250,7 +271,7 @@ EXPERIMENTS = {
     EXP_C_GIANT["name"]: EXP_C_GIANT,
     EXP_D["name"]: EXP_D,
     EXP_REG_GIANT_TRANSFORMER["name"]: EXP_REG_GIANT_TRANSFORMER,
-    
+    EXP_F["name"]: EXP_F,
 }
 
 DEFAULT_EXPERIMENT_ORDER = [
@@ -260,4 +281,5 @@ DEFAULT_EXPERIMENT_ORDER = [
     EXP_C_LARGE["name"],
     EXP_C_GIANT["name"],
     EXP_REG_GIANT_TRANSFORMER["name"],
+    EXP_F["name"],
 ]
