@@ -203,7 +203,6 @@ EXP_D = make_exp(
     fusion_dim=1024,
     notes="DINOv2-large source predicts a frozen stronger DINOv3 target embedding space.",
 )
-
 # =====================
 # Experiment E: DINOv2-with-registers-giant + Fusion Transformer
 # =====================
